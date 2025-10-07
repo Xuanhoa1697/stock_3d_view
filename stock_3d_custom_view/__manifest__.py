@@ -29,7 +29,7 @@
         ],
     },
     'images': [
-        'static/description/banner.jpg',
+        'static/description/assets/screenshots/3.png',
     ],
     'license': 'LGPL-3',
     'installable': True,
