@@ -17,15 +17,15 @@
     ],
     'assets': {
         'web.assets_backend': [
-            'stock_3d_view/static/src/js/form_3d_view.js',
-            'stock_3d_view/static/src/js/listview_3d.js',
-            'stock_3d_view/static/src/css/3d_view.scss',
+            'stock_3d_custom_view/static/src/js/form_3d_view.js',
+            'stock_3d_custom_view/static/src/js/listview_3d.js',
+            'stock_3d_custom_view/static/src/css/3d_view.scss',
             'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.js',
             'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
             "https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.min.js",
-            'stock_3d_view/static/src/xml/stock_location_3d_templates.xml',
-            'stock_3d_view/static/src/xml/stock_location_breadcrumb_templates.xml',
-            'stock_3d_view/static/src/xml/stock_location_modal_templates.xml',
+            'stock_3d_custom_view/static/src/xml/stock_location_3d_templates.xml',
+            'stock_3d_custom_view/static/src/xml/stock_location_breadcrumb_templates.xml',
+            'stock_3d_custom_view/static/src/xml/stock_location_modal_templates.xml',
         ],
     },
     'images': [

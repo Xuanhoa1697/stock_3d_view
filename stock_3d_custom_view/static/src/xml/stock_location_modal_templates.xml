@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
 <!--template to display location details such as product and its quantity-->
-    <t t-name="stock_3d_view.ViewLocationData">
+    <t t-name="stock_3d_custom_view.ViewLocationData">
         <t t-set="data" t-value="getData"/>
         <Dialog>
             <t t-if="data.capacity > 0">

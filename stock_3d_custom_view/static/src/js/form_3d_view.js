@@ -1,35 +1,30 @@
-/** @odoo-module **/
-
-import { _t } from "@web/core/l10n/translation";
 import { Component, onWillStart, onMounted, onPatched, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
+import { createElement, append } from "@web/core/utils/xml";
+import { Notebook } from "@web/core/notebook/notebook";
+import { formView } from "@web/views/form/form_view";
+import { FormController } from '@web/views/form/form_controller';
 import { useService } from "@web/core/utils/hooks";
-import { loadJS, loadCSS } from "@web/core/assets";
-import { cookie } from "@web/core/browser/cookie";
+import {_t} from "@web/core/l10n/translation";
 import { ensureJQuery } from '@web/core/ensure_jquery';
-import { listView } from "@web/views/list/list_view";
-import { ListController } from "@web/views/list/list_controller";
 import { rpc } from "@web/core/network/rpc";
-import { user } from "@web/core/user";
-import { Dialog } from "@web/core/dialog/dialog";
+import {CustomDialog} from "./listview_3d"
 
-export class CustomDialog extends Component {
-	static components = { Dialog };
-	static template = 'stock_3d_view.ViewLocationData';
+export class Stock3DFormView extends Component {
+	setup() {
+        super.setup();
+        this.orm = useService("orm");
+		this.dialog = useService('dialog');
+        onWillStart(async () => {
+            await ensureJQuery()
+        })
 
-	get getData() {
-		return this.props.data;
-	}
-}
+		onMounted(() => {
+            this.Open3DView()
+        })
+    }
 
-export class Stock3DController extends ListController {
-	super() {
-		super.setup();
-	}
-
-	async open3DView(ev) {
-		var self = this;
-		await ensureJQuery();
+	Open3DView() {
 		var self = this;
 		var wh_data;
 		var data;
@@ -43,31 +38,13 @@ export class Stock3DController extends ListController {
 		let selectedObject = null;
 		var dialogs = null;
 		var wh_id;
-		/**
-		 * Make a jsonRpc call to fetch available warehouses and list it in the dropdown.
-		 *
-		 * @await
-		 * @param {integer} company_id
-		 */
-		await rpc('/3Dstock/warehouse', {
-			'company_id': user.context.allowed_company_ids[0],
-		}).then(function(incoming_data) {
-			wh_data = incoming_data;
-		});
-		wh_id = wh_data[0][0];
-		var select = document.createElement("select");
-		select.name = "mySelect";
-		for (let i = 0; i < wh_data.length; i++) {
-			var option = document.createElement("option");
-			option.value = wh_data[i][0];
-			option.text = wh_data[i][1];
-			select.appendChild(option);
-			select.classList.add("customselect");
+		var location_id = self.props.action.context.loc_id || localStorage.getItem("location_id");
+		//sets location_id and company_id in local storage
+		if (self.props.action.context.loc_id != null) {
+			localStorage.setItem("location_id", self.props.action.context.loc_id);
+			localStorage.setItem("company_id", self.props.action.context.company_id);
 		}
 
-		var closeDiv = document.createElement("button");
-		closeDiv.classList.add("closeBtn");
-		closeDiv.innerHTML = "&times;"
 		var colorDiv = document.createElement("div");
 		colorDiv.classList.add("rectangle");
 		var color1 = document.createElement("div");
@@ -92,7 +69,7 @@ export class Stock3DController extends ListController {
 		colorText3.innerHTML = "Free Space Available";
 		colorDiv.appendChild(colorText3);
 		var color4 = document.createElement("div");
-		color4.classList.add("square4");
+		color4.classList.add("square4blue");
 		colorDiv.appendChild(color4);
 		var colorText4 = document.createElement("div");
 		colorText4.classList.add("squareText4");
@@ -107,18 +84,19 @@ export class Stock3DController extends ListController {
 		 */
 		async function start() {
 			/**
-			 * Make a jsonRpc call to fetch location details of corresponding warehouse.
+			 * Make a jsonRpc call to fetch location details.
 			 *
 			 * @await
 			 * @param {integer} company_id
-			 * @param {integer} wh_id
+			 * @param {integer} loc_id
 			 */
-			await rpc('/3Dstock/data', {
-				'company_id': user.context.allowed_company_ids[0],
-				'wh_id': wh_id,
+			await rpc('/3Dstock/data/standalone', {
+				'company_id': self.props.action.context.company_id || localStorage.getItem("company_id"),
+				'loc_id': self.props.action.context.loc_id || localStorage.getItem("location_id"),
 			}).then(function(incoming_data) {
 				data = incoming_data;
 			});
+			//creating a new three.scene
 			scene = new THREE.Scene();
 			scene.background = new THREE.Color(0xdfdfdf);
 			clock = new THREE.Clock();
@@ -127,29 +105,21 @@ export class Stock3DController extends ListController {
 			renderer = new THREE.WebGLRenderer({
 				antialias: true
 			});
-			renderer.setSize(window.innerWidth, window.innerHeight / 1.164);
+			//setting size and pixel ratio for the renderer.
+			renderer.setSize(window.innerWidth, window.innerHeight / 1.163);
 			renderer.setPixelRatio(window.devicePixelRatio);
 			renderer.render(scene, camera);
-			$(self.rootRef.el).find('.o_list_renderer').addClass('d-none')
-			$(self.rootRef.el).find('.o_content').append(renderer.domElement);
-			$(self.rootRef.el).find('.o_content').append(select);
-			$(self.rootRef.el).find('.o_content').append(colorDiv);
-			$(self.rootRef.el).find('.o_content').append(closeDiv);
-			var dropdown = document.querySelector(".customselect");
-			if (dropdown) {
-				dropdown.addEventListener("change", warehouseChange);
-			}
-			var closeBtn = document.querySelector(".closeBtn");
-			if (closeBtn) {
-				closeBtn.addEventListener("click", onWindowClose);
-			}
+			debugger
+			var o_content = $('.o_content')
+			o_content.append(renderer.domElement);
+			o_content.append(colorDiv);
 			controls = new THREE.OrbitControls(camera, renderer.domElement);
 			const baseGeometry = new THREE.BoxGeometry(800, 0, 800);
 			const baseMaterial = new THREE.MeshBasicMaterial({
 				color: 0xffffff,
 				transparent: false,
 				opacity: 1,
-				side: THREE.BackSide,
+				side: THREE.FrontSide,
 			});
 			const baseCube = new THREE.Mesh(baseGeometry, baseMaterial);
 			scene.add(baseCube);
@@ -173,25 +143,30 @@ export class Stock3DController extends ListController {
 						loc_quant = quant_data;
 					});
 					//checking the quantity and capacity of the location to determine the color of the location
-					if (loc_quant[0] > 0) {
-						if (loc_quant[1] > 100) {
-							loc_color = 0xcc0000;
-							loc_opacity = 0.8;
-						} else if (loc_quant[1] > 50) {
-							loc_color = 0xe6b800;
-							loc_opacity = 0.8;
+					if (localStorage.getItem("location_id") == value[6]) {
+						if (loc_quant[0] > 0) {
+							if (loc_quant[1] > 100) {
+								loc_color = 0xcc0000;
+								loc_opacity = 0.8;
+							} else if (loc_quant[1] > 50) {
+								loc_color = 0xe6b800;
+								loc_opacity = 0.8;
+							} else {
+								loc_color = 0x00802b;
+								loc_opacity = 0.8;
+							}
 						} else {
-							loc_color = 0x00802b;
-							loc_opacity = 0.8;
+							if (loc_quant[1] == -1) {
+								loc_color = 0x00802b;
+								loc_opacity = 0.8;
+							} else {
+								loc_color = 0x0066ff;
+								loc_opacity = 0.8;
+							}
 						}
 					} else {
-						if (loc_quant[1] == -1) {
-							loc_color = 0x00802b;
-							loc_opacity = 0.8;
-						} else {
-							loc_color = 0x8c8c8c;
-							loc_opacity = 0.5;
-						}
+						loc_color = 0x8c8c8c;
+						loc_opacity = 0.5;
 					}
 					//creating a 3D box geometry for each location
 					material = new THREE.MeshBasicMaterial({
@@ -242,7 +217,8 @@ export class Stock3DController extends ListController {
 					scene.add(line);
 					mesh.name = key;
 					mesh.userData = {
-						color: loc_color
+						color: loc_color,
+						loc_id: value[6],
 					};
 					group.add(mesh);
 				}
@@ -250,18 +226,7 @@ export class Stock3DController extends ListController {
 			scene.add(group);
 			raycaster = new THREE.Raycaster();
 			pointer = new THREE.Vector3();
-
 			animate();
-		}
-		/**
-		 * Triggered when users change warehouse and calls the start() function with the latest warehouse id.
-		 */
-		function warehouseChange() {
-			console.log('111111111111111111111111111111111')
-			var selectedBox = document.querySelector(".customselect");
-			var selectValue = selectedBox.value;
-			wh_id = selectValue;
-			start();
 		}
 		/**
 		 * Handles the resizing and setting the pixel ration on window resize.
@@ -269,13 +234,7 @@ export class Stock3DController extends ListController {
 		function onWindowResize() {
 			camera.aspect = window.innerWidth / window.innerHeight;
 			camera.updateProjectionMatrix();
-			renderer.setSize(window.innerWidth, window.innerHeight / 1.164);
-		}
-		/**
-		 * Triggered when user clicks on close button.
-		 */
-		function onWindowClose() {
-			window.location.reload();
+			renderer.setSize(window.innerWidth, window.innerHeight / 1.163);
 		}
 		/**
 		 * Animates and renders the three.renderer object to make changes on the scene.
@@ -285,33 +244,19 @@ export class Stock3DController extends ListController {
 			const delta = clock.getDelta();
 			renderer.render(scene, camera);
 			var canvas = document.getElementsByTagName("canvas")[0];
-			var selectedBox = document.querySelector(".customselect");
 			var colorBox = document.querySelector(".rectangle");
-			var closeDiv = document.querySelector(".closeBtn");
 			//checking the canvas element adding event listener on canvas.
 			if (canvas == null) {
 				window.removeEventListener('dblclick', onPointerMove);
 				window.removeEventListener('resize', onWindowResize);
-				if (selectedBox) {
-					selectedBox.style.display = "none";
-				}
 				if (colorBox) {
 					colorBox.style.display = "none";
-				}
-				if (closeDiv) {
-					closeDiv.style.display = "none";
 				}
 			} else {
 				window.addEventListener('dblclick', onPointerMove);
 				window.addEventListener('resize', onWindowResize);
-				if (selectedBox) {
-					selectedBox.style.display = "block";
-				}
 				if (colorBox) {
 					colorBox.style.display = "block";
-				}
-				if (closeDiv) {
-					closeDiv.style.display = "block";
 				}
 			}
 		}
@@ -338,37 +283,39 @@ export class Stock3DController extends ListController {
 							return res && res.object;
 						})[0];
 						if (res && res.object) {
-							/**
-							 * Make a jsonRpc call to fetch the details of products and their quantity of selected location.
-							 *
-							 * @await
-							 * @param {integer} loc_code
-							 */
-							await rpc('/3Dstock/data/product', {
-								'loc_code': res.object.name,
-							}).then(function(product_data) {
-								products = product_data;
-							});
-							selectedObject = res.object;
-							selectedObject.material.color.set(0x00ffcc);
+							if (res.object.userData.loc_id == location_id) {
+								/**
+								 * Make a jsonRpc call to fetch the details of products and their quantity of selected location.
+								 *
+								 * @await
+								 * @param {integer} loc_code
+								 */
+								await rpc('/3Dstock/data/product', {
+									'loc_code': res.object.name,
+								}).then(function(product_data) {
+									products = product_data;
+								});
+								selectedObject = res.object;
+								selectedObject.material.color.set(0x00ffcc);
 
-							function onClickClose() {
-								if (selectedObject) {
-									selectedObject.material.color.set(selectedObject.userData.color);
-									selectedObject = null;
-									self.model.dialog.closeAll();
-									dialogs = null;
+								function onClickClose() {
+									if (selectedObject) {
+										selectedObject.material.color.set(selectedObject.userData.color);
+										selectedObject = null;
+										self.dialog.closeAll();
+										dialogs = null;
+									}
 								}
-							}
-							//opens a new dialogbox with proeduct and quantity details
-							dialogs = self.model.dialog.add(CustomDialog, {
-								data: products
-							})
+								//opens a new dialogbox with proeduct and quantity details
+								dialogs = self.dialog.add(CustomDialog, {
+									data: products
+								})
 
-							if (dialogs) {
-								window.addEventListener('click', onClickClose);
-							} else {
-								window.removeEventListener('click', onClickClose);
+								if (dialogs) {
+									window.addEventListener('click', onClickClose);
+								} else {
+									window.removeEventListener('click', onClickClose);
+								}
 							}
 						}
 					}
@@ -378,8 +325,5 @@ export class Stock3DController extends ListController {
 	}
 }
 
-registry.category("views").add("3d_button_in_stock", {
-    ...listView,
-    Controller: Stock3DController,
-	buttonTemplate: 'stock_3d_view.ListView.Buttons'
-});
+Stock3DFormView.template = "stock_3d_custom_view.Location3DFormView"
+registry.category("actions").add("open_form_3d_view", Stock3DFormView);

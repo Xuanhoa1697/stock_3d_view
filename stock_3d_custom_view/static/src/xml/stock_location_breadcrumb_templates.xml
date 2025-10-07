@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <template>
     <!--adding breadcrumbs manually in stock.location form view.-->
-    <t t-name="stock_3d_view.Location3DFormView">
+    <t t-name="stock_3d_custom_view.Location3DFormView">
         <div class="o_action">
             <div class="o_control_panel">
                 <div class="o_cp_top">

@@ -19,4 +19,4 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from . import stock_3d_view
+from . import stock_3d_custom_view
